@@ -1,0 +1,19 @@
+[package]
+name = "uc law-server"
+version = "0.1.0"
+edition = "2021"
+authors = ["Uclaw Team"]
+license = "MIT"
+description = "Server components for Uclaw"
+
+[dependencies]
+uc law-providers = { path = "../providers" }
+uc law-runtime = { path = "../../runtime" }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+anyhow = "1"
+
+[dev-dependencies]
+tokio-test = "0.4"

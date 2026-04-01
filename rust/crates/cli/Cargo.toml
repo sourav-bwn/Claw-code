@@ -1,0 +1,22 @@
+[package]
+name = "uc law-cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["Uclaw Team"]
+license = "MIT"
+description = "CLI for Uclaw - Unified AI Platform"
+
+[[bin]]
+name = "uc law"
+path = "src/main.rs"
+
+[dependencies]
+uc law-providers = { path = "../providers" }
+uc law-runtime = { path = "../../runtime" }
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+anyhow = "1"

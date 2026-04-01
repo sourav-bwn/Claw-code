@@ -1,0 +1,38 @@
+services:
+  uc law:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - UCLAW_DEBUG=false
+    volumes:
+      - ./data:/app/data
+      - ~/.uc law:/root/.uc law
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  uc law-cli:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.cli
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - .:/workspace
+    stdin_open: true
+    tty: true
+
+networks:
+  default:
+    name: uc law-network

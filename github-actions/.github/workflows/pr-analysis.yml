@@ -1,0 +1,56 @@
+name: Uclaw PR Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main, develop]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Analyze code changes
+        id: analysis
+        run: |
+          echo "## Uclaw PR Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files Changed" >> $GITHUB_STEP_SUMMARY
+          git diff --name-only HEAD~1 >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "First commit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Changes Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          git diff --stat HEAD~1 2>/dev/null || echo "No previous commit" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Run basic checks
+        run: |
+          echo "## Quality Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for TODO comments
+          TODO_COUNT=$(grep -r "TODO" --include="*.py" --include="*.js" --include="*.ts" --include="*.rs" . 2>/dev/null | wc -l)
+          echo "- TODO comments: $TODO_COUNT" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for debug statements
+          DEBUG_COUNT=$(grep -r "console.log\|print\|println" --include="*.py" --include="*.js" --include="*.ts" . 2>/dev/null | wc -l)
+          echo "- Debug statements: $DEBUG_COUNT" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body-file << 'EOF'
+          ## Uclaw PR Analysis Summary
+          
+          ✅ Basic checks completed
+          📊 See full analysis in the workflow summary
+          EOF

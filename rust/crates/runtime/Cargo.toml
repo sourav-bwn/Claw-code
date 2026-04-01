@@ -1,0 +1,27 @@
+[package]
+name = "uc law-runtime"
+version = "0.1.0"
+edition = "2021"
+authors = ["Uclaw Team"]
+license = "MIT"
+description = "Runtime and agent core for Uclaw"
+
+[dependencies]
+uc law-providers = { path = "../providers" }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+anyhow = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+glob = "0.3"
+regex = "1"
+walkdir = "2"
+dirs = "5"
+
+[dev-dependencies]
+tokio-test = "0.4"

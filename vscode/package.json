@@ -1,0 +1,130 @@
+{
+  "name": "uc law",
+  "displayName": "Uclaw - AI Coding Assistant",
+  "description": "Unified AI coding assistant with multi-provider support (Claude, GPT-4, Gemini)",
+  "version": "0.1.0",
+  "publisher": "uc law",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ai",
+    "claude",
+    "gpt",
+    "gemini",
+    "coding",
+    "assistant"
+  ],
+  "activationEvents": [
+    "onCommand:uc law.start",
+    "onView:uc law.chatView"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "uc law.start",
+        "title": "Uclaw: Start Chat",
+        "category": "Uclaw"
+      },
+      {
+        "command": "uc law.ask",
+        "title": "Uclaw: Ask About Selection",
+        "category": "Uclaw"
+      },
+      {
+        "command": "uc law.explain",
+        "title": "Uclaw: Explain Code",
+        "category": "Uclaw"
+      },
+      {
+        "command": "uc law.fix",
+        "title": "Uclaw: Fix Problems",
+        "category": "Uclaw"
+      },
+      {
+        "command": "uc law.refactor",
+        "title": "Uclaw: Refactor Code",
+        "category": "Uclaw"
+      },
+      {
+        "command": "uc law.generate",
+        "title": "Uclaw: Generate Tests",
+        "category": "Uclaw"
+      }
+    ],
+    "views": {
+      "walkthrough": [
+        {
+          "id": "uc law.chatView",
+          "name": "Uclaw Chat"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "uc law.panel",
+          "title": "Uclaw",
+          "icon": "media/icon.png"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "uc law.ask",
+          "when": "editorHasSelection",
+          "group": "uc law"
+        },
+        {
+          "command": "uc law.explain",
+          "when": "editorHasSelection",
+          "group": "uc law"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "uc law.start",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Uclaw",
+      "properties": {
+        "uc law.apiProvider": {
+          "type": "string",
+          "enum": ["anthropic", "openai", "gemini"],
+          "default": "anthropic",
+          "description": "AI provider to use"
+        },
+        "uc law.model": {
+          "type": "string",
+          "default": "claude-sonnet-4-6",
+          "description": "Model to use"
+        },
+        "uc law.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for the selected provider"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.3.8",
+    "typescript": "^5.3.0"
+  }
+}

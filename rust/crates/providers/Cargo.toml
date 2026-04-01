@@ -1,0 +1,22 @@
+[package]
+name = "uc law-providers"
+version = "0.1.0"
+edition = "2021"
+authors = ["Uclaw Team"]
+license = "MIT"
+description = "Multi-provider AI API abstraction for Uclaw"
+
+[dependencies]
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+async-trait = "0.1"
+futures = "0.3"
+url = "2"
+base64 = "0.22"
+
+[dev-dependencies]
+tokio-test = "0.4"

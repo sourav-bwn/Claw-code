@@ -1,0 +1,28 @@
+FROM rust:1.75-slim as builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY rust/Cargo.toml rust/Cargo.lock* rust/
+COPY rust/crates/providers ./crates/providers
+COPY rust/crates/runtime ./crates/runtime
+COPY rust/crates/tools ./crates/tools
+COPY rust/crates/cli ./crates/cli
+
+RUN cargo build --release --bin uc law
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/target/release/uc law /usr/local/bin/uc law
+
+ENTRYPOINT ["uc law"]
+CMD ["--help"]
