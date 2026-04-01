@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uclaw - Free AI Chat 🤖</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .logo {
+            font-size: 5rem;
+            margin-bottom: 10px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .free-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step {
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid;
+            border-image: linear-gradient(to bottom, #6366f1, #a855f7) 1;
+        }
+
+        .step h3 {
+            color: #a855f7;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .step p {
+            color: #cbd5e1;
+            line-height: 1.6;
+        }
+
+        code {
+            background: rgba(99, 102, 241, 0.3);
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            color: #818cf8;
+        }
+
+        pre {
+            background: rgba(0,0,0,0.4);
+            padding: 15px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+        }
+
+        .chat-box {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 20px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            max-height: 400px;
+        }
+
+        .msg {
+            padding: 15px 20px;
+            border-radius: 15px;
+            margin: 10px 0;
+            max-width: 85%;
+            line-height: 1.6;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg.user {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+
+        .msg.ai {
+            background: rgba(255,255,255,0.1);
+            color: #f1f5f9;
+            border-bottom-left-radius: 5px;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 6px;
+            padding: 15px 20px;
+        }
+
+        .typing-indicator span {
+            width: 10px;
+            height: 10px;
+            background: #6366f1;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-8px); opacity: 1; }
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid transparent;
+            border-radius: 25px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            border-color: #6366f1;
+            background: rgba(255,255,255,0.15);
+        }
+
+        input::placeholder { color: #94a3b8; }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 25px rgba(99, 102, 241, 0.5);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            transform: none;
+        }
+
+        .status-bar {
+            text-align: center;
+            padding: 12px;
+            font-size: 0.9rem;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: 0.3s;
+        }
+
+        .status-bar.ready { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .status-bar.error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .status-bar.waiting { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature-box {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: 0.3s;
+        }
+
+        .feature-box:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-5px);
+        }
+
+        .feature-box .icon { font-size: 2rem; margin-bottom: 10px; }
+        .feature-box h3 { font-size: 1rem; margin-bottom: 5px; }
+        .feature-box p { font-size: 0.8rem; color: #94a3b8; }
+
+        .video-tutorial {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .video-tutorial a {
+            color: #818cf8;
+            text-decoration: none;
+            font-size: 1.1rem;
+        }
+
+        .video-tutorial a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8rem; }
+            .msg { max-width: 95%; }
+            pre { font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🐾</div>
+            <h1>Uclaw</h1>
+            <div class="free-tag">🎉 100% FREE - No API Key Needed!</div>
+            <p style="color: #94a3b8; font-size: 1.1rem;">
+                Your personal AI assistant that works in any browser
+            </p>
+        </header>
+
+        <div class="features-grid">
+            <div class="feature-box">
+                <div class="icon">💬</div>
+                <h3>Chat</h3>
+                <p>Ask anything</p>
+            </div>
+            <div class="feature-box">
+                <div class="icon">✍️</div>
+                <h3>Write</h3>
+                <p>Essays, emails, code</p>
+            </div>
+            <div class="feature-box">
+                <div class="icon">🔍</div>
+                <h3>Research</h3>
+                <p>Understand topics</p>
+            </div>
+            <div class="feature-box">
+                <div class="icon">💡</div>
+                <h3>Ideas</h3>
+                <p>Brainstorm solutions</p>
+            </div>
+        </div>
+
+        <div id="setupSection">
+            <div class="card">
+                <h2>🚀 Setup in 2 Minutes</h2>
+                
+                <div class="step">
+                    <h3>📥 Step 1: Install Ollama</h3>
+                    <p>Go to <strong>ollama.com</strong> and click Download. Install it on your computer.</p>
+                </div>
+
+                <div class="step">
+                    <h3>⌨️ Step 2: Open Terminal & Paste</h3>
+                    <p>Open your computer's terminal (Terminal app on Mac, CMD on Windows) and run:</p>
+                    <pre>ollama pull llama3.2
+ollama serve</pre>
+                </div>
+
+                <div class="step">
+                    <h3>💬 Step 3: Chat!</h3>
+                    <p>Refresh this page and start chatting below! That's it!</p>
+                </div>
+
+                <div class="video-tutorial">
+                    <p>📺 Need help? Watch the tutorial: <a href="https://www.youtube.com/results?search_query=ollama+setup" target="_blank">Click Here</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-box">
+            <div id="statusBar" class="status-bar waiting">
+                ⏳ Checking connection...
+            </div>
+
+            <div class="messages" id="messages">
+                <div class="msg ai">
+                    Hey there! 👋 I'm Uclaw, your free AI assistant.<br><br>
+                    I can help you with:
+                    <br>• Answering questions
+                    <br>• Writing essays, emails, or stories
+                    <br>• Writing and debugging code
+                    <br>• Explaining complex topics
+                    <br>• Brainstorming ideas
+                    <br><br>
+                    <strong>Follow the setup steps above first, then start chatting!</strong>
+                </div>
+            </div>
+
+            <div class="input-row">
+                <input type="text" id="userInput" placeholder="Type your message here..." onkeypress="handleEnter(event)">
+                <button onclick="sendMessage()" id="sendBtn">Send 🚀</button>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 30px;">
+            <h2>❓ FAQ</h2>
+            <div class="step">
+                <h3>Is this really free?</h3>
+                <p>Yes! Ollama runs AI models locally on YOUR computer. No API keys, no subscriptions, no limits!</p>
+            </div>
+            <div class="step">
+                <h3>Why do I need to install Ollama?</h3>
+                <p>Ollama is the software that runs the AI on your computer. It's like a web browser - you install it once and use it forever.</p>
+            </div>
+            <div class="step">
+                <h3>What models can I use?</h3>
+                <p><code>llama3.2</code> - Great for everything<br>
+                <code>codellama</code> - Better for coding<br>
+                <code>mistral</code> - Fast and lightweight<br>
+                <code>phi</code> - Tiny model for old computers</p>
+            </div>
+            <div class="step">
+                <h3>It's not working!</h3>
+                <p>Make sure Ollama is still running. Check your terminal - you should see "Ollama is running". If not, run <code>ollama serve</code> again.</p>
+            </div>
+        </div>
+
+        <footer style="text-align: center; padding: 30px; color: #64748b;">
+            <p>Made with ❤️ | <a href="https://github.com/KING-SS-OFFICIAL/Claw-code" style="color: #818cf8;">View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        const messages = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusBar = document.getElementById('statusBar');
+        const setupSection = document.getElementById('setupSection');
+
+        let connected = false;
+        let ollamaModel = 'llama3.2';
+
+        // Check connection on load
+        checkConnection();
+        setInterval(checkConnection, 5000);
+
+        async function checkConnection() {
+            try {
+                const res = await fetch('http://localhost:11434/', { method: 'GET' });
+                if (res.ok) {
+                    connected = true;
+                    statusBar.className = 'status-bar ready';
+                    statusBar.textContent = '✅ Connected! Start chatting below!';
+                    setupSection.style.display = 'none';
+                    
+                    // Try to get available models
+                    try {
+                        const modelsRes = await fetch('http://localhost:11434/api/tags');
+                        if (modelsRes.ok) {
+                            const data = await modelsRes.json();
+                            if (data.models && data.models.length > 0) {
+                                ollamaModel = data.models[0].name;
+                            }
+                        }
+                    } catch {}
+                }
+            } catch {
+                connected = false;
+                statusBar.className = 'status-bar error';
+                statusBar.textContent = '❌ Not connected - Follow setup steps above';
+                setupSection.style.display = 'block';
+            }
+        }
+
+        function addMessage(text, isUser = false) {
+            const div = document.createElement('div');
+            div.className = `msg ${isUser ? 'user' : 'ai'}`;
+            div.textContent = text;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function showTyping() {
+            const div = document.createElement('div');
+            div.className = 'msg ai';
+            div.id = 'typing';
+            div.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function hideTyping() {
+            const typing = document.getElementById('typing');
+            if (typing) typing.remove();
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            if (!connected) {
+                addMessage("Please set up Ollama first! Follow the steps above, then refresh this page.", false);
+                return;
+            }
+
+            addMessage(text, true);
+            userInput.value = '';
+            sendBtn.disabled = true;
+            showTyping();
+
+            try {
+                const res = await fetch('http://localhost:11434/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: ollamaModel,
+                        prompt: text,
+                        stream: false,
+                        options: {
+                            temperature: 0.7,
+                            top_p: 0.9
+                        }
+                    })
+                });
+
+                hideTyping();
+
+                if (res.ok) {
+                    const data = await res.json();
+                    addMessage(data.response || 'Got an empty response');
+                } else {
+                    addMessage("Something went wrong. Is Ollama still running? Try refreshing the page.", false);
+                }
+            } catch (err) {
+                hideTyping();
+                addMessage("Can't connect to Ollama. Make sure it's still running!", false);
+                connected = false;
+                checkConnection();
+            }
+
+            sendBtn.disabled = false;
+            userInput.focus();
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+    </script>
+</body>
+</html>
