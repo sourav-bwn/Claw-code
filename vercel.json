@@ -1,0 +1,7 @@
+{
+  "framework": null,
+  "buildCommand": null,
+  "devCommand": "cd web && pip install -r requirements.txt && python app.py",
+  "installCommand": "pip install -r web/requirements.txt",
+  "port": 8000
+}
