@@ -1,50 +1,30 @@
 import os
 import uuid
 import json
+import httpx
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
-from fastapi import (
-    FastAPI,
-    HTTPException,
-    WebSocket,
-    WebSocketDisconnect,
-    Query,
-    Request,
-)
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
 
-class Settings(BaseSettings):
+class Settings:
     host: str = "0.0.0.0"
     port: int = 8000
-    debug: bool = False
-    secret_key: str = "uc law-secret-change-in-production"
-
-    class Config:
-        env_prefix = "UCLAW_"
 
 
 settings = Settings()
-
 sessions: Dict[str, Dict[str, Any]] = {}
-connections: Dict[str, WebSocket] = {}
-
-
-class Message(BaseModel):
-    role: str
-    content: str
 
 
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     model: Optional[str] = None
+    provider: Optional[str] = "ollama"
     system_prompt: Optional[str] = None
 
 
@@ -52,31 +32,24 @@ class ChatResponse(BaseModel):
     session_id: str
     message: str
     model: str
+    provider: str
     usage: Optional[Dict[str, int]] = None
-
-
-class SessionInfo(BaseModel):
-    id: str
-    created_at: str
-    model: str
-    message_count: int
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Uclaw Web UI starting...")
+    print("🤖 Uclaw Web UI starting...")
+    print("💡 Default provider: Ollama (FREE, no API key needed!)")
     yield
-    print("Uclaw Web UI shutting down...")
+    print("👋 Uclaw Web UI shutting down...")
 
 
 app = FastAPI(
     title="Uclaw - Unified AI Platform",
-    description="Web interface for the Uclaw AI coding assistant",
+    description="Free AI coding assistant - no API key needed!",
     version="0.1.0",
     lifespan=lifespan,
 )
-
-templates = Jinja2Templates(directory="templates")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -85,61 +58,61 @@ async def home():
         return HTMLResponse(content=f.read())
 
 
-@app.get("/api/sessions", response_model=List[SessionInfo])
+@app.get("/api/sessions")
 async def list_sessions():
     return [
-        SessionInfo(
-            id=sid,
-            created_at=info["created_at"],
-            model=info["model"],
-            message_count=len(info.get("messages", [])),
-        )
+        {
+            "id": sid,
+            "created_at": info["created_at"],
+            "model": info["model"],
+            "provider": info.get("provider", "ollama"),
+            "message_count": len(info.get("messages", [])),
+        }
         for sid, info in sessions.items()
     ]
 
 
-@app.post("/api/sessions", response_model=SessionInfo)
-async def create_session(model: Optional[str] = Query(default="claude-sonnet-4-6")):
+@app.post("/api/sessions")
+async def create_session(
+    model: Optional[str] = "llama3.2", provider: Optional[str] = "ollama"
+):
     session_id = str(uuid.uuid4())
     sessions[session_id] = {
         "id": session_id,
         "created_at": datetime.now().isoformat(),
         "model": model,
+        "provider": provider,
         "messages": [],
         "system_prompt": None,
     }
-    return SessionInfo(
-        id=session_id,
-        created_at=sessions[session_id]["created_at"],
-        model=model,
-        message_count=0,
-    )
+    return {
+        "id": session_id,
+        "model": model,
+        "provider": provider,
+        "created_at": datetime.now().isoformat(),
+        "message_count": 0,
+    }
 
 
 @app.delete("/api/sessions/{session_id}")
 async def delete_session(session_id: str):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    del sessions[session_id]
+    if session_id in sessions:
+        del sessions[session_id]
     return {"status": "ok"}
 
 
-@app.get("/api/sessions/{session_id}/messages")
-async def get_messages(session_id: str):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    return sessions[session_id].get("messages", [])
-
-
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/api/chat")
 async def chat(request: ChatRequest):
     session_id = request.session_id or str(uuid.uuid4())
+    provider = request.provider or "ollama"
+    model = request.model or "llama3.2"
 
     if session_id not in sessions:
         sessions[session_id] = {
             "id": session_id,
             "created_at": datetime.now().isoformat(),
-            "model": request.model or "claude-sonnet-4-6",
+            "model": model,
+            "provider": provider,
             "messages": [],
             "system_prompt": request.system_prompt,
         }
@@ -155,7 +128,8 @@ async def chat(request: ChatRequest):
 
     response_text = await generate_response(
         messages=session["messages"],
-        model=session["model"],
+        model=model,
+        provider=provider,
         system_prompt=session.get("system_prompt"),
     )
 
@@ -170,120 +144,97 @@ async def chat(request: ChatRequest):
     return ChatResponse(
         session_id=session_id,
         message=response_text,
-        model=session["model"],
+        model=model,
+        provider=provider,
         usage={"total_tokens": len(response_text) // 4},
     )
 
 
-@app.websocket("/ws/chat/{session_id}")
-async def websocket_chat(websocket: WebSocket, session_id: str):
-    await websocket.accept()
-    connections[session_id] = websocket
-
-    if session_id not in sessions:
-        sessions[session_id] = {
-            "id": session_id,
-            "created_at": datetime.now().isoformat(),
-            "model": "claude-sonnet-4-6",
-            "messages": [],
-            "system_prompt": None,
-        }
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-            message_data = json.loads(data)
-
-            if message_data.get("type") == "message":
-                message = message_data.get("content", "")
-
-                session = sessions[session_id]
-                session["messages"].append(
-                    {
-                        "role": "user",
-                        "content": message,
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )
-
-                await websocket.send_json(
-                    {"type": "status", "status": "thinking", "message": "Thinking..."}
-                )
-
-                response_text = await generate_response(
-                    messages=session["messages"],
-                    model=session["model"],
-                    system_prompt=session.get("system_prompt"),
-                )
-
-                session["messages"].append(
-                    {
-                        "role": "assistant",
-                        "content": response_text,
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )
-
-                await websocket.send_json(
-                    {
-                        "type": "message",
-                        "content": response_text,
-                        "model": session["model"],
-                    }
-                )
-
-            elif message_data.get("type") == "clear":
-                sessions[session_id]["messages"] = []
-                await websocket.send_json(
-                    {
-                        "type": "status",
-                        "status": "cleared",
-                        "message": "Conversation cleared",
-                    }
-                )
-
-    except WebSocketDisconnect:
-        if session_id in connections:
-            del connections[session_id]
-
-
 async def generate_response(
-    messages: List[Dict[str, Any]], model: str, system_prompt: Optional[str] = None
-) -> str:
-    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY")
-
-    if not api_key:
-        return """I'm Uclaw, your AI assistant! 
-
-To enable full AI responses, please set one of these environment variables:
-- ANTHROPIC_API_KEY (for Claude)
-- OPENAI_API_KEY (for GPT-4)
-
-For now, I can help you with:
-- Viewing your conversation history
-- Exploring the Uclaw platform features
-- Understanding how to configure AI providers
-
-Try setting an API key and sending another message!"""
-
-    import httpx
-
-    if "claude" in model.lower():
-        return await generate_claude_response(messages, model, api_key, system_prompt)
-    elif "gpt" in model.lower() or "openai" in model.lower():
-        return await generate_openai_response(messages, model, api_key, system_prompt)
-    else:
-        return (
-            f"Model '{model}' is not yet supported. Please use Claude or GPT-4 models."
-        )
-
-
-async def generate_claude_response(
     messages: List[Dict[str, Any]],
     model: str,
-    api_key: str,
+    provider: str = "ollama",
     system_prompt: Optional[str] = None,
 ) -> str:
+    if provider == "ollama" or provider == "local":
+        return await generate_ollama_response(messages, model)
+    elif provider == "anthropic":
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if api_key:
+            return await generate_claude_response(
+                messages, model, api_key, system_prompt
+            )
+        return "⚠️ Set ANTHROPIC_API_KEY to use Claude"
+    elif provider == "openai":
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if api_key:
+            return await generate_openai_response(
+                messages, model, api_key, system_prompt
+            )
+        return "⚠️ Set OPENAI_API_KEY to use GPT-4"
+    elif provider == "gemini":
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if api_key:
+            return await generate_gemini_response(messages, model, api_key)
+        return "⚠️ Set GEMINI_API_KEY to use Gemini"
+    else:
+        return await generate_ollama_response(messages, model)
+
+
+async def generate_ollama_response(messages: List[Dict[str, Any]], model: str) -> str:
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            ollama_messages = []
+            for msg in messages:
+                if msg["role"] == "system":
+                    continue
+                ollama_messages.append({"role": msg["role"], "content": msg["content"]})
+
+            response = await client.post(
+                "http://localhost:11434/api/chat",
+                json={"model": model, "messages": ollama_messages, "stream": False},
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("message", {}).get("content", "No response")
+            elif response.status_code == 404:
+                return f"""⚠️ Ollama model '{model}' not found!
+
+To install models:
+1. Install Ollama: curl -fsSL https://ollama.ai | sh
+2. Pull a model: ollama pull llama3.2
+3. Restart Uclaw
+
+Available free models:
+• llama3.2 - General purpose
+• llama3.2:70b - Larger model
+• codellama - Code specialized
+• mistral - Fast & efficient
+• phi - Small but capable"""
+            else:
+                return f"⚠️ Ollama error: {response.status_code}"
+
+    except httpx.ConnectError:
+        return """🤖 Ollama is not running!
+
+To use FREE AI (no API key needed):
+
+1. Install Ollama:
+   curl -fsSL https://ollama.ai | sh
+
+2. Pull a model:
+   ollama pull llama3.2
+
+3. Start Ollama:
+   ollama serve
+
+4. Refresh this page!
+
+After that, you can chat for FREE with no limits!"""
+
+
+async def generate_claude_response(messages, model, api_key, system_prompt=None):
     async with httpx.AsyncClient(timeout=60.0) as client:
         anthropic_messages = []
         for msg in messages:
@@ -297,7 +248,6 @@ async def generate_claude_response(
             )
 
         payload = {"model": model, "messages": anthropic_messages, "max_tokens": 4096}
-
         if system_prompt:
             payload["system"] = system_prompt
 
@@ -311,25 +261,15 @@ async def generate_claude_response(
             json=payload,
         )
 
-        if response.status_code == 401:
-            return "Invalid API key. Please check your ANTHROPIC_API_KEY."
-
-        if response.status_code != 200:
-            return f"Error: {response.status_code} - {response.text}"
-
-        data = response.json()
-        return data["content"][0]["text"]
+        if response.status_code == 200:
+            data = response.json()
+            return data["content"][0]["text"]
+        return f"⚠️ Claude error: {response.status_code}"
 
 
-async def generate_openai_response(
-    messages: List[Dict[str, Any]],
-    model: str,
-    api_key: str,
-    system_prompt: Optional[str] = None,
-) -> str:
+async def generate_openai_response(messages, model, api_key, system_prompt=None):
     async with httpx.AsyncClient(timeout=60.0) as client:
         openai_messages = []
-
         if system_prompt:
             openai_messages.append({"role": "system", "content": system_prompt})
 
@@ -349,35 +289,86 @@ async def generate_openai_response(
             json=payload,
         )
 
-        if response.status_code == 401:
-            return "Invalid API key. Please check your OPENAI_API_KEY."
+        if response.status_code == 200:
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+        return f"⚠️ OpenAI error: {response.status_code}"
 
-        if response.status_code != 200:
-            return f"Error: {response.status_code} - {response.text}"
 
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+async def generate_gemini_response(messages, model, api_key):
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        contents = []
+        for msg in messages:
+            contents.append(
+                {
+                    "role": "user" if msg["role"] == "user" else "model",
+                    "parts": [{"text": msg["content"]}],
+                }
+            )
+
+        response = await client.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            params={"key": api_key},
+            json={"contents": contents, "generationConfig": {"maxOutputTokens": 4096}},
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        return f"⚠️ Gemini error: {response.status_code}"
 
 
 @app.get("/api/models")
 async def list_models():
     return [
-        {"id": "claude-opus-4-6", "name": "Claude Opus 4", "provider": "Anthropic"},
-        {"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4", "provider": "Anthropic"},
         {
-            "id": "claude-haiku-4-5-20251213",
-            "name": "Claude Haiku 4",
-            "provider": "Anthropic",
+            "id": "llama3.2",
+            "name": "Llama 3.2",
+            "provider": "Ollama (FREE)",
+            "requires_key": False,
         },
-        {"id": "gpt-4o", "name": "GPT-4o", "provider": "OpenAI"},
-        {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "provider": "OpenAI"},
-        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "provider": "Google"},
+        {
+            "id": "llama3.2:70b",
+            "name": "Llama 3.2 70B",
+            "provider": "Ollama (FREE)",
+            "requires_key": False,
+        },
+        {
+            "id": "codellama",
+            "name": "Code Llama",
+            "provider": "Ollama (FREE)",
+            "requires_key": False,
+        },
+        {
+            "id": "mistral",
+            "name": "Mistral",
+            "provider": "Ollama (FREE)",
+            "requires_key": False,
+        },
+        {
+            "id": "claude-sonnet-4-6",
+            "name": "Claude Sonnet 4",
+            "provider": "Anthropic",
+            "requires_key": True,
+        },
+        {
+            "id": "gpt-4o-mini",
+            "name": "GPT-4o Mini",
+            "provider": "OpenAI",
+            "requires_key": True,
+        },
+        {
+            "id": "gemini-2.0-flash",
+            "name": "Gemini 2.0 Flash",
+            "provider": "Google",
+            "requires_key": True,
+        },
     ]
 
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "version": "0.1.0"}
+    return {"status": "healthy", "version": "0.1.0", "default": "ollama (FREE)"}
 
 
 if __name__ == "__main__":
