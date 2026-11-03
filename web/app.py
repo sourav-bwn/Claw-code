@@ -54,7 +54,8 @@ app = FastAPI(
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    with open("static/index.html", "r") as f:
+    static_page = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "index.html")
+    with open(static_page, "r") as f:
         return HTMLResponse(content=f.read())
 
 
